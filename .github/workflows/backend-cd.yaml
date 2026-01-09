@@ -70,14 +70,23 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Validate ECR repo secret
+      - name: Resolve ECR repo URI
         env:
-          ECR_REPO: ${{ secrets.BACKEND_ECR_REPO }}
+          PROVIDED_ECR_REPO: ${{ secrets.BACKEND_ECR_REPO }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          if [ -z "$ECR_REPO" ]; then
-            echo "ERROR: BACKEND_ECR_REPO secret is not set."
-            echo "Set BACKEND_ECR_REPO to the full ECR repository URI, e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com/backend"
-            exit 1
+          if [ -n "$PROVIDED_ECR_REPO" ]; then
+            echo "BACKEND_ECR_REPO=$PROVIDED_ECR_REPO" >> $GITHUB_ENV
+            echo "Using provided BACKEND_ECR_REPO=$PROVIDED_ECR_REPO"
+          else
+            echo "No BACKEND_ECR_REPO secret provided; resolving via AWS ECR..."
+            REPO_URI=$(aws ecr describe-repositories --repository-names backend --region "$AWS_REGION" --query 'repositories[0].repositoryUri' --output text 2>/dev/null || true)
+            if [ -z "$REPO_URI" ]; then
+              echo "Repository 'backend' not found; creating..."
+              REPO_URI=$(aws ecr create-repository --repository-name backend --region "$AWS_REGION" --query 'repository.repositoryUri' --output text)
+            fi
+            echo "BACKEND_ECR_REPO=$REPO_URI" >> $GITHUB_ENV
+            echo "Resolved BACKEND_ECR_REPO=$REPO_URI"
           fi
 
       - name: Build Docker image
@@ -87,8 +96,8 @@ jobs:
 
       - name: Tag and push image to ECR
         run: |
-          docker tag backend:${{ github.sha }} ${{ secrets.BACKEND_ECR_REPO }}:${{ github.sha }}
-          docker push ${{ secrets.BACKEND_ECR_REPO }}:${{ github.sha }}
+          docker tag backend:${{ github.sha }} $BACKEND_ECR_REPO:${{ github.sha }}
+          docker push $BACKEND_ECR_REPO:${{ github.sha }}
 
       - name: Update kubeconfig
         run: |
