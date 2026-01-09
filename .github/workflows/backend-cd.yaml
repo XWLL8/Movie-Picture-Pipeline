@@ -14,13 +14,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: starter/backend
         run: |
           cd backend
           npm install
 
       - name: Run lint
-        working-directory: backend
+        working-directory: starter/backend
         run: |
           cd backend
           npm run lint
@@ -33,13 +33,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        working-directory: backend
+        working-directory: starter/backend
         run: |
           cd backend
           npm install
 
       - name: Run tests
-        working-directory: backend
+        working-directory: starter/backend
         run: |
           cd backend
           npm test
