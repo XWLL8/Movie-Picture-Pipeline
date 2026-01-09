@@ -15,12 +15,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd backend
+          cd starter/backend
           npm install
 
       - name: Run lint
         run: |
-          cd backend
+          cd starter/backend
           npm run lint
 
   test:
@@ -32,12 +32,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd backend
+          cd starter/backend
           npm install
 
       - name: Run tests
         run: |
-          cd backend
+          cd starter/backend
           npm test
 
   build-and-deploy:
@@ -60,7 +60,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          cd backend
+          cd starter/backend
           docker build -t backend:${{ github.sha }} .
 
       - name: Tag and push image to ECR
