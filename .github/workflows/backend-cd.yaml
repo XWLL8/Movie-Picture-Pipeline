@@ -70,6 +70,16 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Validate ECR repo secret
+        env:
+          ECR_REPO: ${{ secrets.BACKEND_ECR_REPO }}
+        run: |
+          if [ -z "$ECR_REPO" ]; then
+            echo "ERROR: BACKEND_ECR_REPO secret is not set."
+            echo "Set BACKEND_ECR_REPO to the full ECR repository URI, e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com/backend"
+            exit 1
+          fi
+
       - name: Build Docker image
         run: |
           cd starter/backend
