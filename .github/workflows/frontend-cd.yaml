@@ -12,15 +12,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
       - name: Install dependencies
         run: |
-          cd frontend
-          npm install
+          cd starter/frontend
+          npm ci
 
       - name: Run lint
         run: |
-          cd frontend
+          cd starter/frontend
           npm run lint
 
   test:
@@ -29,15 +33,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
       - name: Install dependencies
         run: |
-          cd frontend
-          npm install
+          cd starter/frontend
+          npm ci
 
       - name: Run tests
         run: |
-          cd frontend
+          cd starter/frontend
           npm test -- --watch=false
 
   build-and-deploy:
@@ -58,17 +66,36 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Resolve ECR repo URI
+        env:
+          PROVIDED_ECR_REPO: ${{ secrets.FRONTEND_ECR_REPO }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          if [ -n "$PROVIDED_ECR_REPO" ]; then
+            echo "FRONTEND_ECR_REPO=$PROVIDED_ECR_REPO" >> $GITHUB_ENV
+            echo "Using provided FRONTEND_ECR_REPO=$PROVIDED_ECR_REPO"
+          else
+            echo "No FRONTEND_ECR_REPO secret provided; resolving via AWS ECR..."
+            REPO_URI=$(aws ecr describe-repositories --repository-names frontend --region "$AWS_REGION" --query 'repositories[0].repositoryUri' --output text 2>/dev/null || true)
+            if [ -z "$REPO_URI" ]; then
+              echo "Repository 'frontend' not found; creating..."
+              REPO_URI=$(aws ecr create-repository --repository-name frontend --region "$AWS_REGION" --query 'repository.repositoryUri' --output text)
+            fi
+            echo "FRONTEND_ECR_REPO=$REPO_URI" >> $GITHUB_ENV
+            echo "Resolved FRONTEND_ECR_REPO=$REPO_URI"
+          fi
+
       - name: Build Docker image
         run: |
-          cd frontend
+          cd starter/frontend
           docker build \
             --build-arg REACT_APP_MOVIE_API_URL=${{ secrets.REACT_APP_MOVIE_API_URL }} \
             -t frontend:${{ github.sha }} .
 
       - name: Tag and push image to ECR
         run: |
-          docker tag frontend:${{ github.sha }} ${{ secrets.FRONTEND_ECR_REPO }}:${{ github.sha }}
-          docker push ${{ secrets.FRONTEND_ECR_REPO }}:${{ github.sha }}
+          docker tag frontend:${{ github.sha }} $FRONTEND_ECR_REPO:${{ github.sha }}
+          docker push $FRONTEND_ECR_REPO:${{ github.sha }}
 
       - name: Update kubeconfig
         run: |
@@ -79,4 +106,4 @@ jobs:
       - name: Deploy frontend to EKS
         run: |
           kubectl set image deployment/frontend \
-            frontend=${{ secrets.FRONTEND_ECR_REPO }}:${{ github.sha }}
+            frontend=$FRONTEND_ECR_REPO:${{ github.sha }}
