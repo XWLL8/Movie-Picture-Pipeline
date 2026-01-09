@@ -103,6 +103,10 @@ jobs:
             --name ${{ secrets.EKS_CLUSTER_NAME }} \
             --region ${{ secrets.AWS_REGION }}
 
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -k starter/frontend/k8s
+
       - name: Deploy frontend to EKS
         run: |
           kubectl set image deployment/frontend \
