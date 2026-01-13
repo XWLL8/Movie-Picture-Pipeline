@@ -147,10 +147,10 @@ jobs:
 
       - name: Update kustomization with new image tag
         run: |
-          cd starter/frontend/k8s
+          cd k8s
           kustomize edit set image frontend=$FRONTEND_ECR_REPO:${{ github.sha }}
 
       - name: Apply Kubernetes manifests using kustomize
         run: |
-          cd starter/frontend/k8s
+          cd k8s
           kustomize build | kubectl apply -f -
